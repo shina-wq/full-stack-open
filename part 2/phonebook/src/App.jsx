@@ -61,8 +61,8 @@ const App = () => {
       number: newNumber,
     };
 
-    personService.create(personObject).then((response) => {
-      setPersons(persons.concat(response.data));
+    personService.create(personObject).then((newPerson) => {
+      setPersons(persons.concat(newPerson));
 
       setNewName("");
       setNewNumber("");
