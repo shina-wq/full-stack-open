@@ -1,4 +1,8 @@
+require("dotenv").config();
+
+const Person = require("./models/person");
 const express = require("express");
+const connectDB = require("./config/db");
 
 const app = express();
 const morgan = require("morgan");
@@ -16,101 +20,113 @@ app.use(
 
 const PORT = process.env.PORT || 3001;
 
-// Hardcoded phonebook data
-let persons = [
-  {
-    id: "1",
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: "2",
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: "3",
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: "4",
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
-
 // GET /api/persons
-app.get("/api/persons", (req, res) => {
-  res.json(persons);
+app.get("/api/persons", (request, response, next) => {
+  Person.find({})
+    .then((persons) => {
+      response.json(persons);
+    })
+    .catch(next);
 });
 
 // GET /api/persons/:id
-app.get("/api/persons/:id", (req, res) => {
-  const { id } = req.params;
-
-  const person = persons.find((person) => person.id === id);
-
-  if (!person) {
-    return res.status(404).json({
-      error: "Person not found",
-    });
-  }
-
-  res.json(person);
+app.get("/api/persons/:id", (req, res, next) => {
+  Person.findById(req.params.id)
+    .then((person) => {
+      if (person) {
+        res.json(person);
+      } else {
+        res.status(404).end();
+      }
+    })
+    .catch(next);
 });
 
 // DELETE /api/persons/:id
-app.delete("/api/persons/:id", (req, res) => {
-  const { id } = req.params;
-
-  persons = persons.filter((person) => person.id !== id);
-
-  res.status(204).end();
+app.delete("/api/persons/:id", (req, res, next) => {
+  Person.findByIdAndDelete(req.params.id)
+    .then(() => {
+      res.status(204).end();
+    })
+    .catch(next);
 });
 
 // POST /api/persons
-app.post("/api/persons", (req, res) => {
-  const { name, number } = req.body;
+app.post("/api/persons", (req, res, next) => {
+  const body = req.body;
 
-  // Validate required fields
-  if (!name || !number) {
-    return res.status(400).json({
-      error: "name or number is missing",
-    });
-  }
+  const person = new Person({
+    name: body.name,
+    number: body.number,
+  });
 
-  // Validate unique name
-  const existingPerson = persons.find((person) => person.name === name);
+  person
+    .save()
+    .then((savedPerson) => {
+      res.json(savedPerson);
+    })
+    .catch(next);
+});
 
-  if (existingPerson) {
-    return res.status(400).json({
-      error: "name must be unique",
-    });
-  }
+// PUT /api/persons/:id
+app.put("/api/persons/:id", (req, res, next) => {
+  const body = req.body;
 
-  const newPerson = {
-    id: Math.floor(Math.random() * 1000000).toString(),
-    name,
-    number,
+  const person = {
+    name: body.name,
+    number: body.number,
   };
 
-  persons.push(newPerson);
-
-  res.status(201).json(newPerson);
+  Person.findByIdAndUpdate(
+    req.params.id,
+    person,
+    {
+      new: true,
+      runValidators: true,
+    }
+  )
+    .then((updatedPerson) => {
+      res.json(updatedPerson);
+    })
+    .catch(next);
 });
 
 // GET /info
-app.get("/info", (req, res) => {
-  const personCount = persons.length;
-  const currentTime = new Date();
+app.get("/info", (req, res, next) => {
+  Person.countDocuments({})
+    .then((count) => {
+      const currentTime = new Date();
 
-  res.send(`
-    <p>Phonebook has info for ${personCount} people</p>
-    <p>${currentTime}</p>
-  `);
+      res.send(`
+        <p>Phonebook has info for ${count} people</p>
+        <p>${currentTime}</p>
+      `);
+    })
+    .catch(next);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+const errorHandler = (error, req, res, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return res.status(400).json({ error: "malformatted id" });
+  }
+
+  if (error.name === "ValidationError") {
+    return res.status(400).json({ error: error.message });
+  }
+
+  next(error);
+};
+
+app.use(errorHandler);
+
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+};
+
+startServer();

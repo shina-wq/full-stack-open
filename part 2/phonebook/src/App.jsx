@@ -10,6 +10,7 @@ const App = () => {
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [filter, setFilter] = useState("");
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
   personService.getAll().then((persons) => {
@@ -61,11 +62,34 @@ const App = () => {
       number: newNumber,
     };
 
-    personService.create(personObject).then((newPerson) => {
-      setPersons(persons.concat(newPerson));
+    personService
+      .create(personObject)
+      .then((returnedPerson) => {
+        setPersons(persons.concat(returnedPerson));
+        setNewName("");
+        setNewNumber("");
+      })
+      .catch((error) => {
+        setErrorMessage(error.response.data.error);
 
-      setNewName("");
-      setNewNumber("");
+        setTimeout(() => {
+          setErrorMessage(null);
+        }, 5000);
+      });
+
+    personService
+      .create(newPerson)
+      .then((returnedPerson) => {
+        setPersons(persons.concat(returnedPerson));
+        setNewName("");
+        setNewNumber("");
+      })
+      .catch((error) => {
+        setErrorMessage(error.response.data.error);
+
+        setTimeout(() => {
+          setErrorMessage(null);
+        }, 5000);
     });
   };
 
@@ -89,6 +113,11 @@ const App = () => {
 
   return (
     <div>
+      {errorMessage && (
+        <div className="error">
+          {errorMessage}
+        </div>
+)}
       <h2>Phonebook</h2>
 
       <Filter
