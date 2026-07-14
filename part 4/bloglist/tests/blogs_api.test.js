@@ -119,3 +119,48 @@ test("a blog without url is not created", async () => {
     .send(newBlog)
     .expect(400);
 });
+
+test("a blog can be deleted", async () => {
+  const blogsAtStart = (await Blog.find({})).map(blog => blog.toJSON());
+  const blogToDelete = blogsAtStart[0];
+
+  await api
+    .delete(`/api/blogs/${blogToDelete.id}`)
+    .expect(204);
+
+  const blogsAtEnd = (await Blog.find({})).map(blog => blog.toJSON());
+
+  assert.strictEqual(
+    blogsAtEnd.length,
+    blogsAtStart.length - 1
+  );
+
+  const titles = blogsAtEnd.map(blog => blog.title);
+
+  assert(!titles.includes(blogToDelete.title));
+});
+
+test("a blog's likes can be updated", async () => {
+  const blogsAtStart = (await Blog.find({})).map(blog => blog.toJSON());
+
+  const blogToUpdate = blogsAtStart[0];
+
+  const updatedBlog = {
+    ...blogToUpdate,
+    likes: blogToUpdate.likes + 1,
+  };
+
+  const response = await api
+    .put(`/api/blogs/${blogToUpdate.id}`)
+    .send(updatedBlog)
+    .expect(200)
+    .expect("Content-Type", /application\/json/);
+
+  assert.strictEqual(response.body.likes, blogToUpdate.likes + 1);
+
+  const blogsAtEnd = (await Blog.find({})).map(blog => blog.toJSON());
+
+  const updated = blogsAtEnd.find(blog => blog.id === blogToUpdate.id);
+
+  assert.strictEqual(updated.likes, blogToUpdate.likes + 1);
+});
