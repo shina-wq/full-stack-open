@@ -1,11 +1,12 @@
-const { test, describe, before } = require("node:test");
+const { test, describe, beforeEach, after } = require("node:test");
 const assert = require("node:assert");
 const supertest = require("supertest");
-
+const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
 
 const app = require("../app");
 const Blog = require("../models/blog");
+const User = require("../models/user");
 
 const api = supertest(app);
 
@@ -24,12 +25,47 @@ const initialBlogs = [
   },
 ];
 
-before(async () => {
+const loginAndGetToken = async () => {
+  const response = await api
+    .post("/api/login")
+    .send({
+      username: "root",
+      password: "sekret",
+    });
+
+  return response.body.token;
+};
+
+beforeEach(async () => {
   await Blog.deleteMany({});
+  await User.deleteMany({});
 
-  const blogObjects = initialBlogs.map((blog) => new Blog(blog));
+  const passwordHash = await bcrypt.hash("sekret", 10);
 
-  await Blog.insertMany(blogObjects);
+  const user = new User({
+    username: "root",
+    name: "Superuser",
+    passwordHash,
+  });
+
+  const savedUser = await user.save();
+
+  const blogObjects = initialBlogs.map(
+    blog =>
+      new Blog({
+        ...blog,
+        user: savedUser._id,
+      })
+  );
+
+  const savedBlogs = await Blog.insertMany(blogObjects);
+
+  await User.findByIdAndUpdate(
+    savedUser._id,
+    {
+      blogs: savedBlogs.map(blog => blog._id),
+    }
+  );
 });
 
 describe("when there are initially some blogs saved", () => {
@@ -50,13 +86,13 @@ describe("when there are initially some blogs saved", () => {
 test("blog posts have id property instead of _id", async () => {
   const response = await api.get("/api/blogs");
 
-  const blogs = response.body;
-
-  assert.strictEqual(blogs[0].id !== undefined, true);
-  assert.strictEqual(blogs[0]._id, undefined);
+  assert(response.body[0].id);
+  assert.strictEqual(response.body[0]._id, undefined);
 });
 
 test("a valid blog can be added", async () => {
+  const token = await loginAndGetToken();
+
   const newBlog = {
     title: "The Art of Testing",
     author: "Shina",
@@ -66,19 +102,41 @@ test("a valid blog can be added", async () => {
 
   await api
     .post("/api/blogs")
+    .set("Authorization", `Bearer ${token}`)
     .send(newBlog)
     .expect(201)
     .expect("Content-Type", /application\/json/);
 
   const response = await api.get("/api/blogs");
 
-  const titles = response.body.map((blog) => blog.title);
-
   assert.strictEqual(response.body.length, initialBlogs.length + 1);
-  assert(titles.includes("The Art of Testing"));
+
+  const titles = response.body.map(blog => blog.title);
+
+  assert(titles.includes(newBlog.title));
+});
+
+test("adding a blog fails with status code 401 if token is not provided", async () => {
+  const newBlog = {
+    title: "Unauthorized blog",
+    author: "Shina",
+    url: "https://example.com",
+    likes: 1,
+  };
+
+  await api
+    .post("/api/blogs")
+    .send(newBlog)
+    .expect(401);
+
+  const blogs = await Blog.find({});
+
+  assert.strictEqual(blogs.length, initialBlogs.length);
 });
 
 test("if likes is missing, it defaults to 0", async () => {
+  const token = await loginAndGetToken();
+
   const newBlog = {
     title: "Blog without likes",
     author: "Shina",
@@ -87,6 +145,7 @@ test("if likes is missing, it defaults to 0", async () => {
 
   const response = await api
     .post("/api/blogs")
+    .set("Authorization", `Bearer ${token}`)
     .send(newBlog)
     .expect(201);
 
@@ -94,6 +153,8 @@ test("if likes is missing, it defaults to 0", async () => {
 });
 
 test("a blog without title is not created", async () => {
+  const token = await loginAndGetToken();
+
   const newBlog = {
     author: "Shina",
     url: "https://example.com/no-title",
@@ -102,12 +163,14 @@ test("a blog without title is not created", async () => {
 
   await api
     .post("/api/blogs")
+    .set("Authorization", `Bearer ${token}`)
     .send(newBlog)
     .expect(400);
 });
 
-
 test("a blog without url is not created", async () => {
+  const token = await loginAndGetToken();
+
   const newBlog = {
     title: "Blog without URL",
     author: "Shina",
@@ -116,16 +179,21 @@ test("a blog without url is not created", async () => {
 
   await api
     .post("/api/blogs")
+    .set("Authorization", `Bearer ${token}`)
     .send(newBlog)
     .expect(400);
 });
 
 test("a blog can be deleted", async () => {
+  const token = await loginAndGetToken();
+
   const blogsAtStart = (await Blog.find({})).map(blog => blog.toJSON());
+
   const blogToDelete = blogsAtStart[0];
 
   await api
     .delete(`/api/blogs/${blogToDelete.id}`)
+    .set("Authorization", `Bearer ${token}`)
     .expect(204);
 
   const blogsAtEnd = (await Blog.find({})).map(blog => blog.toJSON());
@@ -163,4 +231,8 @@ test("a blog's likes can be updated", async () => {
   const updated = blogsAtEnd.find(blog => blog.id === blogToUpdate.id);
 
   assert.strictEqual(updated.likes, blogToUpdate.likes + 1);
+});
+
+after(async () => {
+  await mongoose.connection.close();
 });
