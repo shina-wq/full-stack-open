@@ -39,6 +39,10 @@ const userExtractor = async (request, response, next) => {
   }
 };
 
+const unknownEndpoint = (request, response) => {
+  response.status(404).json({error: "unknown endpoint"});
+};
+
 const errorHandler = (error, request, response, next) => {
   if (error.name === "CastError") {
     return response.status(400).json({
@@ -70,5 +74,6 @@ const errorHandler = (error, request, response, next) => {
 module.exports = {
   tokenExtractor,
   userExtractor,
+  unknownEndpoint,
   errorHandler,
 };

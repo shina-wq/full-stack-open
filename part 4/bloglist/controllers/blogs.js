@@ -27,10 +27,12 @@ blogsRouter.post("/", middleware.userExtractor, async (req, res) => {
     user.blogs = user.blogs.concat(savedBlog._id);
     await user.save();
 
+    await savedBlog.populate("user", {username: 1, name: 1});
+
     res.status(201).json(savedBlog);
 });
 
-blogsRouter.put("/:id", async (req, res) => {
+blogsRouter.put("/:id", middleware.userExtractor, async (req, res) => {
   const updatedBlog = await Blog.findByIdAndUpdate(
     req.params.id,
     req.body,
@@ -38,7 +40,11 @@ blogsRouter.put("/:id", async (req, res) => {
       new: true,
       runValidators: true,
     }
-  );
+  ).populate("user", {username: 1, name: 1});
+
+  if (!updatedBlog) {
+    return res.status(404).json({error: "blog not found"});
+  }
 
   res.json(updatedBlog);
 });
