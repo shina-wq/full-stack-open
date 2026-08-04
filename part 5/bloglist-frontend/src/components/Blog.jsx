@@ -1,8 +1,6 @@
-import { useState } from "react"
+import { Link } from "react-router-dom"
 
-const Blog = ({ blog, likeBlog, deleteBlog, user }) => {
-  const [visible, setVisible] = useState(false)
-
+const Blog = ({ blog }) => {
   const blogStyle = {
     paddingTop: 10,
     paddingLeft: 2,
@@ -13,33 +11,9 @@ const Blog = ({ blog, likeBlog, deleteBlog, user }) => {
 
   return (
     <div style={blogStyle} className="blog">
-      <div className="blog-summary">
+      <Link to={`/blogs/${blog.id}`}>
         {blog.title} {blog.author}
-        <button onClick={() => setVisible(!visible)}>
-          {visible ? "hide" : "view"}
-        </button>
-      </div>
-
-      {visible && (
-        <div className="blog-details">
-          <div>{blog.url}</div>
-
-          <div>
-            {blog.likes} likes
-            <button onClick={() => likeBlog(blog)}>
-              like
-            </button>
-          </div>
-
-          <div>{blog.user.name}</div>
-
-          {user.username === blog.user.username && (
-            <button onClick={() => deleteBlog(blog)}>
-              remove
-            </button>
-          )}
-        </div>
-      )}
+      </Link>
     </div>
   )
 }
