@@ -15,6 +15,15 @@ import CreateBlogView from "./components/CreateBlogView"
 import blogService from "./services/blogs"
 import loginService from "./services/login"
 
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  AppBar,
+  Toolbar
+} from "@mui/material"
+
 const App = () => {
   const [blogs, setBlogs] = useState([])
   const [username, setUsername] = useState("")
@@ -43,8 +52,11 @@ const App = () => {
     }
   }, [])
 
-  const showNotification = message => {
-    setNotification(message)
+  const showNotification = (
+    message,
+    type = "success"
+  ) => {
+    setNotification({ message, type })
 
     setTimeout(() => {
       setNotification(null)
@@ -74,7 +86,7 @@ const App = () => {
       showNotification(`Welcome ${user.name}`)
       navigate("/")
     } catch {
-      showNotification("wrong username or password")
+      showNotification("wrong username or password", "error")
     }
   }
 
@@ -102,7 +114,7 @@ const App = () => {
 
       navigate("/")
     } catch {
-      showNotification("creating blog failed")
+      showNotification("creating blog failed", "error")
     }
   }
 
@@ -129,7 +141,7 @@ const App = () => {
           .sort((a, b) => b.likes - a.likes)
       )
     } catch {
-      showNotification("updating likes failed")
+      showNotification("Updating likes failed", "error")
     }
   }
 
@@ -150,7 +162,7 @@ const App = () => {
       showNotification(`"${blog.title}" deleted`)
       navigate("/")
     } catch {
-      showNotification("deleting blog failed")
+      showNotification("Deleting blog failed", "error")
     }
   }
 
@@ -162,7 +174,9 @@ const App = () => {
 
   const blogList = (
     <>
-      <h2>blogs</h2>
+      <Typography variant="h4" gutterBottom>
+        Blogs
+      </Typography>
 
       {blogs.map(blog => (
         <Blog
@@ -177,77 +191,98 @@ const App = () => {
   )
 
   const loginForm = (
-    <>
-      <h2>Log into application</h2>
+    <Box sx={{ mt: 3 }}>
+      <Typography variant="h5" gutterBottom>
+        Log into application
+      </Typography>
 
-      <form onSubmit={handleLogin}>
-        <div>
-          <label htmlFor="username">
-            Username
-          </label>
+      <Box
+        component="form"
+        onSubmit={handleLogin}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          maxWidth: 400,
+        }}
+      >
+        <TextField
+          label="Username"
+          value={username}
+          onChange={({ target }) =>
+            setUsername(target.value)
+          }
+        />
 
-          <input
-            id="username"
-            value={username}
-            onChange={({ target }) =>
-              setUsername(target.value)
-            }
-          />
-        </div>
+        <TextField
+          label="Password"
+          type="password"
+          value={password}
+          onChange={({ target }) =>
+            setPassword(target.value)
+          }
+        />
 
-        <div>
-          <label htmlFor="password">
-            Password
-          </label>
-
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={({ target }) =>
-              setPassword(target.value)
-            }
-          />
-        </div>
-
-        <button type="submit">
-          login
-        </button>
-      </form>
-    </>
+        <Button
+          type="submit"
+          variant="contained"
+        >
+          Login
+        </Button>
+      </Box>
+    </Box>
   )
 
   return (
     <div>
-      <Notification message={notification} />
+      <Notification notification={notification} />
 
-      <nav>
-        <Link to="/">
-          blogs
-        </Link>{" "}
+      <AppBar position="static" sx={{ mb: 3 }}>
+        <Toolbar>
+          <Button
+            color="inherit"
+            component={Link}
+            to="/"
+          >
+            Blogs
+          </Button>
 
-        {user && (
-          <Link to="/create">
-            create
-          </Link>
-        )}{" "}
+          {user && (
+            <Button
+              color="inherit"
+              component={Link}
+              to="/create"
+            >
+              Create
+            </Button>
+          )}
 
-        {!user && (
-          <Link to="/login">
-            login
-          </Link>
-        )}
+          <Box sx={{ flexGrow: 1 }} />
 
-        {user && (
-          <>
-            {user.name} logged in{" "}
+          {!user ? (
+            <Button
+              color="inherit"
+              component={Link}
+              to="/login"
+            >
+              Login
+            </Button>
+          ) : (
+            <>
+              <Typography sx={{ mr: 2 }}>
+                {user.name}
+              </Typography>
 
-            <button onClick={handleLogout}>
-              logout
-            </button>
-          </>
-        )}
-      </nav>
+              <Button
+                color="inherit"
+                onClick={handleLogout}
+              >
+                Logout
+              </Button>
+            </>
+          )}
+        </Toolbar>
+      </AppBar>
 
       <Routes>
         <Route
