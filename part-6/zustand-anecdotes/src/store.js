@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { useNotificationStore } from './notificationStore'
 
-const useAnecdoteStore = create((set) => ({
+export const useAnecdoteStore = create((set) => ({
   anecdotes: [],
   filter: '',
 
