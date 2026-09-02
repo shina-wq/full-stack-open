@@ -1,76 +1,67 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
-  Routes,
-  Route,
   Navigate,
-  useNavigate,
+  Route,
+  Routes,
   useMatch,
+  useNavigate,
 } from "react-router-dom"
-
-import Blog from "./components/Blog"
-import Notification from "./components/Notification"
-import BlogView from "./components/BlogView"
-import CreateBlogView from "./components/CreateBlogView"
-import Navigation from "./components/Navigation"
-import ErrorBoundary from "./components/ErrorBoundary"
-
-import blogService from "./services/blogs"
-import loginService from "./services/login"
 
 import { Box, Button, TextField, Typography } from "@mui/material"
 
+import Blog from "./components/Blog"
+import BlogView from "./components/BlogView"
+import CreateBlogView from "./components/CreateBlogView"
+import ErrorBoundary from "./components/ErrorBoundary"
+import Navigation from "./components/Navigation"
+import Notification from "./components/Notification"
+import useField from "./hooks/useField"
+
+import useBlogStore from "./stores/blogStore"
+import useNotificationStore from "./stores/notificationStore"
+import useUserStore from "./stores/userStore"
+
 const App = () => {
-  const [blogs, setBlogs] = useState([])
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [user, setUser] = useState(null)
-  const [notification, setNotification] = useState(null)
+  const username = useField("text")
+  const password = useField("password")
+  const [blogsLoaded, setBlogsLoaded] = useState(false)
+
+  const user = useUserStore((state) => state.user)
+  const initializeUser = useUserStore((state) => state.initializeUser)
+  const login = useUserStore((state) => state.login)
+  const logout = useUserStore((state) => state.logout)
+
+  const blogs = useBlogStore((state) => state.blogs)
+  const initializeBlogs = useBlogStore((state) => state.initializeBlogs)
+  const createBlog = useBlogStore((state) => state.createBlog)
+  const likeBlog = useBlogStore((state) => state.likeBlog)
+  const deleteBlog = useBlogStore((state) => state.deleteBlog)
+
+  const showNotification = useNotificationStore(
+    (state) => state.showNotification,
+  )
 
   const navigate = useNavigate()
+  const match = useMatch("/blogs/:id")
 
   useEffect(() => {
-    blogService.getAll().then((blogs) => {
-      setBlogs(blogs.sort((a, b) => b.likes - a.likes))
-    })
-  }, [])
-
-  useEffect(() => {
-    const loggedUserJSON = window.localStorage.getItem("loggedBlogappUser")
-
-    if (loggedUserJSON) {
-      const user = JSON.parse(loggedUserJSON)
-
-      setUser(user)
-      blogService.setToken(user.token)
-    }
-  }, [])
-
-  const showNotification = (message, type = "success") => {
-    setNotification({ message, type })
-
-    setTimeout(() => {
-      setNotification(null)
-    }, 5000)
-  }
+    initializeBlogs().finally(() => setBlogsLoaded(true))
+    initializeUser()
+  }, [initializeBlogs, initializeUser])
 
   const handleLogin = async (event) => {
     event.preventDefault()
 
     try {
-      const user = await loginService.login({
-        username,
-        password,
+      const loggedInUser = await login({
+        username: username.value,
+        password: password.value,
       })
 
-      window.localStorage.setItem("loggedBlogappUser", JSON.stringify(user))
+      username.reset()
+      password.reset()
 
-      blogService.setToken(user.token)
-
-      setUser(user)
-      setUsername("")
-      setPassword("")
-
-      showNotification(`Welcome ${user.name}`)
+      showNotification(`Welcome ${loggedInUser.name}`)
       navigate("/")
     } catch {
       showNotification("wrong username or password", "error")
@@ -78,23 +69,15 @@ const App = () => {
   }
 
   const handleLogout = () => {
-    window.localStorage.removeItem("loggedBlogappUser")
-    blogService.setToken(null)
-    setUser(null)
-
+    logout()
     navigate("/")
   }
 
   const handleCreateBlog = async (newBlog) => {
     try {
-      const returnedBlog = await blogService.create(newBlog)
-
-      setBlogs((prev) =>
-        prev.concat(returnedBlog).sort((a, b) => b.likes - a.likes),
-      )
+      const returnedBlog = await createBlog(newBlog)
 
       showNotification(`a new blog "${returnedBlog.title}" added`)
-
       navigate("/")
     } catch {
       showNotification("creating blog failed", "error")
@@ -103,36 +86,21 @@ const App = () => {
 
   const handleLikeBlog = async (blog) => {
     try {
-      const updatedBlog = {
-        ...blog,
-        likes: blog.likes + 1,
-        user: blog.user.id,
-      }
-
-      const returnedBlog = await blogService.update(blog.id, updatedBlog)
-
-      setBlogs((prev) =>
-        prev
-          .map((b) => (b.id === blog.id ? returnedBlog : b))
-          .sort((a, b) => b.likes - a.likes),
-      )
+      await likeBlog(blog)
     } catch {
       showNotification("Updating likes failed", "error")
     }
   }
 
   const handleDeleteBlog = async (blog) => {
-    const confirmDelete = window.confirm(
+    const confirmed = window.confirm(
       `Remove blog "${blog.title}" by ${blog.author}?`,
     )
 
-    if (!confirmDelete) return
+    if (!confirmed) return
 
     try {
-      await blogService.remove(blog.id)
-
-      setBlogs((prev) => prev.filter((b) => b.id !== blog.id))
-
+      await deleteBlog(blog)
       showNotification(`"${blog.title}" deleted`)
       navigate("/")
     } catch {
@@ -140,10 +108,8 @@ const App = () => {
     }
   }
 
-  const match = useMatch("/blogs/:id")
-
   const selectedBlog = match
-    ? blogs.find((b) => b.id === match.params.id)
+    ? blogs.find((blog) => blog.id === match.params.id)
     : null
 
   const blogList = (
@@ -153,13 +119,7 @@ const App = () => {
       </Typography>
 
       {blogs.map((blog) => (
-        <Blog
-          key={blog.id}
-          blog={blog}
-          likeBlog={handleLikeBlog}
-          deleteBlog={handleDeleteBlog}
-          user={user}
-        />
+        <Blog key={blog.id} blog={blog} />
       ))}
     </>
   )
@@ -182,15 +142,16 @@ const App = () => {
       >
         <TextField
           label="Username"
-          value={username}
-          onChange={({ target }) => setUsername(target.value)}
+          type={username.type}
+          value={username.value}
+          onChange={username.onChange}
         />
 
         <TextField
           label="Password"
-          type="password"
-          value={password}
-          onChange={({ target }) => setPassword(target.value)}
+          type={password.type}
+          value={password.value}
+          onChange={password.onChange}
         />
 
         <Button type="submit" variant="contained">
@@ -200,12 +161,26 @@ const App = () => {
     </Box>
   )
 
+  const renderBlogView = () => {
+    if (!blogsLoaded) return null
+    if (!selectedBlog) return <Navigate replace to="/" />
+
+    return (
+      <BlogView
+        blog={selectedBlog}
+        user={user}
+        likeBlog={handleLikeBlog}
+        deleteBlog={handleDeleteBlog}
+      />
+    )
+  }
+
   return (
     <>
-      <Navigation user={user} onLogout={handleLogout} />
+      <Navigation onLogout={handleLogout} />
 
       <ErrorBoundary>
-        <Notification notification={notification} />
+        <Notification />
 
         <Routes>
           <Route path="/" element={user ? blogList : loginForm} />
@@ -215,21 +190,7 @@ const App = () => {
             element={user ? <Navigate replace to="/" /> : loginForm}
           />
 
-          <Route
-            path="/blogs/:id"
-            element={
-              selectedBlog ? (
-                <BlogView
-                  blog={selectedBlog}
-                  user={user}
-                  likeBlog={handleLikeBlog}
-                  deleteBlog={handleDeleteBlog}
-                />
-              ) : (
-                <Navigate replace to="/" />
-              )
-            }
-          />
+          <Route path="/blogs/:id" element={renderBlogView()} />
 
           <Route
             path="/create"
@@ -241,6 +202,7 @@ const App = () => {
               )
             }
           />
+
           <Route
             path="*"
             element={<Typography variant="h5">Page not found</Typography>}

@@ -1,23 +1,24 @@
-import { useState } from "react"
 import { Box, Button, TextField, Typography } from "@mui/material"
 
+import useField from "../hooks/useField"
+
 const BlogForm = ({ createBlog }) => {
-  const [title, setTitle] = useState("")
-  const [author, setAuthor] = useState("")
-  const [url, setUrl] = useState("")
+  const title = useField("text")
+  const author = useField("text")
+  const url = useField("url")
 
   const handleSubmit = (event) => {
     event.preventDefault()
 
     createBlog({
-      title,
-      author,
-      url,
+      title: title.value,
+      author: author.value,
+      url: url.value,
     })
 
-    setTitle("")
-    setAuthor("")
-    setUrl("")
+    title.reset()
+    author.reset()
+    url.reset()
   }
 
   return (
@@ -36,17 +37,9 @@ const BlogForm = ({ createBlog }) => {
           maxWidth: 400,
         }}
       >
-        <TextField
-          label="Author"
-          value={author}
-          onChange={({ target }) => setAuthor(target.value)}
-        />
-
-        <TextField
-          label="URL"
-          value={url}
-          onChange={({ target }) => setUrl(target.value)}
-        />
+        <TextField label="Title" type={title.type} value={title.value} onChange={title.onChange} />
+        <TextField label="Author" type={author.type} value={author.value} onChange={author.onChange} />
+        <TextField label="URL" type={url.type} value={url.value} onChange={url.onChange} />
 
         <Button type="submit" variant="contained">
           Create
