@@ -37,9 +37,24 @@ const BlogForm = ({ createBlog }) => {
           maxWidth: 400,
         }}
       >
-        <TextField label="Title" type={title.type} value={title.value} onChange={title.onChange} />
-        <TextField label="Author" type={author.type} value={author.value} onChange={author.onChange} />
-        <TextField label="URL" type={url.type} value={url.value} onChange={url.onChange} />
+        <TextField
+          label="Title"
+          type={title.type}
+          value={title.value}
+          onChange={title.onChange}
+        />
+        <TextField
+          label="Author"
+          type={author.type}
+          value={author.value}
+          onChange={author.onChange}
+        />
+        <TextField
+          label="URL"
+          type={url.type}
+          value={url.value}
+          onChange={url.onChange}
+        />
 
         <Button type="submit" variant="contained">
           Create

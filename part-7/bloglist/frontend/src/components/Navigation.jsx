@@ -18,9 +18,15 @@ const Navigation = ({ onLogout }) => {
         </Typography>
 
         {user && (
-          <Button color="inherit" component={Link} to="/create">
-            Create
-          </Button>
+          <>
+            <Button color="inherit" component={Link} to="/users">
+              Users
+            </Button>
+
+            <Button color="inherit" component={Link} to="/create">
+              Create
+            </Button>
+          </>
         )}
 
         <Box sx={{ flexGrow: 1 }} />

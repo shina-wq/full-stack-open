@@ -1,8 +1,7 @@
 import { create } from "zustand"
 import blogService from "../services/blogs"
 
-const sortByLikes = (blogs) =>
-  [...blogs].sort((a, b) => b.likes - a.likes)
+const sortByLikes = (blogs) => [...blogs].sort((a, b) => b.likes - a.likes)
 
 const useBlogStore = create((set) => ({
   blogs: [],
@@ -48,6 +47,18 @@ const useBlogStore = create((set) => ({
     set((state) => ({
       blogs: state.blogs.filter((item) => item.id !== blog.id),
     }))
+  },
+
+  addComment: async (blog, comment) => {
+    const updatedBlog = await blogService.comment(blog.id, comment)
+
+    set((state) => ({
+      blogs: state.blogs.map((item) =>
+        item.id === updatedBlog.id ? updatedBlog : item,
+      ),
+    }))
+
+    return updatedBlog
   },
 }))
 

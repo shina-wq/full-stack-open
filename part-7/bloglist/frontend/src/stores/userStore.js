@@ -1,38 +1,21 @@
 import { create } from "zustand"
 
-import blogService from "../services/blogs"
-import loginService from "../services/login"
-import { getUser, removeUser, saveUser } from "../services/persistentUser"
+import userService from "../services/users"
 
-const useUserStore = create((set) => ({
-  user: null,
+const useUsersStore = create((set) => ({
+  users: [],
+  loading: false,
 
-  initializeUser: () => {
-    const user = getUser()
+  initializeUsers: async () => {
+    set({ loading: true })
 
-    if (!user) return
-
-    blogService.setToken(user.token)
-    set({ user })
-  },
-
-  login: async (credentials) => {
-    const user = await loginService.login(credentials)
-
-    saveUser(user)
-    blogService.setToken(user.token)
-
-    set({ user })
-
-    return user
-  },
-
-  logout: () => {
-    removeUser()
-    blogService.setToken(null)
-
-    set({ user: null })
+    try {
+      const users = await userService.getAll()
+      set({ users })
+    } finally {
+      set({ loading: false })
+    }
   },
 }))
 
-export default useUserStore
+export default useUsersStore

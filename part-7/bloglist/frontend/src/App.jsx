@@ -7,7 +7,13 @@ import {
   useNavigate,
 } from "react-router-dom"
 
-import { Box, Button, TextField, Typography } from "@mui/material"
+import {
+  Box,
+  Button,
+  CircularProgress,
+  TextField,
+  Typography,
+} from "@mui/material"
 
 import Blog from "./components/Blog"
 import BlogView from "./components/BlogView"
@@ -15,11 +21,14 @@ import CreateBlogView from "./components/CreateBlogView"
 import ErrorBoundary from "./components/ErrorBoundary"
 import Navigation from "./components/Navigation"
 import Notification from "./components/Notification"
+import UserView from "./components/UserView"
+import UsersView from "./components/UsersView"
 import useField from "./hooks/useField"
 
 import useBlogStore from "./stores/blogStore"
 import useNotificationStore from "./stores/notificationStore"
 import useUserStore from "./stores/userStore"
+import useUsersStore from "./stores/usersStore"
 
 const App = () => {
   const username = useField("text")
@@ -37,17 +46,35 @@ const App = () => {
   const likeBlog = useBlogStore((state) => state.likeBlog)
   const deleteBlog = useBlogStore((state) => state.deleteBlog)
 
+  const users = useUsersStore((state) => state.users)
+  const usersLoading = useUsersStore((state) => state.loading)
+  const initializeUsers = useUsersStore((state) => state.initializeUsers)
+  const addComment = useBlogStore((state) => state.addComment)
+
   const showNotification = useNotificationStore(
     (state) => state.showNotification,
   )
 
   const navigate = useNavigate()
+
+  // Fixed: these were "/blogs/" and "/users/" (literal), which never matched
+  // an id and left selectedBlog/selectedUser permanently null.
   const match = useMatch("/blogs/:id")
+  const userMatch = useMatch("/users/:id")
 
   useEffect(() => {
     initializeBlogs().finally(() => setBlogsLoaded(true))
+    initializeUsers()
     initializeUser()
-  }, [initializeBlogs, initializeUser])
+  }, [initializeBlogs, initializeUsers, initializeUser])
+
+  const selectedBlog = match
+    ? blogs.find((blog) => blog.id === match.params.id)
+    : null
+
+  const selectedUser = userMatch
+    ? users.find((user) => user.id === userMatch.params.id)
+    : null
 
   const handleLogin = async (event) => {
     event.preventDefault()
@@ -93,6 +120,7 @@ const App = () => {
   }
 
   const handleDeleteBlog = async (blog) => {
+    // Fixed: missing backticks made this a syntax error
     const confirmed = window.confirm(
       `Remove blog "${blog.title}" by ${blog.author}?`,
     )
@@ -107,10 +135,6 @@ const App = () => {
       showNotification("Deleting blog failed", "error")
     }
   }
-
-  const selectedBlog = match
-    ? blogs.find((blog) => blog.id === match.params.id)
-    : null
 
   const blogList = (
     <>
@@ -162,7 +186,7 @@ const App = () => {
   )
 
   const renderBlogView = () => {
-    if (!blogsLoaded) return null
+    if (!blogsLoaded) return <CircularProgress />
     if (!selectedBlog) return <Navigate replace to="/" />
 
     return (
@@ -171,8 +195,16 @@ const App = () => {
         user={user}
         likeBlog={handleLikeBlog}
         deleteBlog={handleDeleteBlog}
+        addComment={addComment}
       />
     )
+  }
+
+  const renderUserView = () => {
+    if (usersLoading) return <CircularProgress />
+    if (!selectedUser) return <Navigate replace to="/users" />
+
+    return <UserView user={selectedUser} />
   }
 
   return (
@@ -200,6 +232,18 @@ const App = () => {
               ) : (
                 <Navigate replace to="/login" />
               )
+            }
+          />
+
+          <Route
+            path="/users"
+            element={user ? <UsersView /> : <Navigate replace to="/login" />}
+          />
+
+          <Route
+            path="/users/:id"
+            element={
+              user ? renderUserView() : <Navigate replace to="/login" />
             }
           />
 
